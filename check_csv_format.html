@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<style>
+    #box {
+        width: 50%;
+        margin: 50px auto;
+    }
+    #output {
+        margin-top: 20px;
+    }
+    .bad {
+        color: red;
+    }
+    .good {
+        color: green;
+    }
+</style>
+<body>
+<div id="box">
+    <div>
+        <label for="get-csv">Please upload the CSV file: </label>
+        <input type="file" id="get-csv" accept="text/csv" onclick="this.value=null;">
+    </div>
+    <div id="output" class="good"></div>
+</div>
+
+
+<script>
+    let output = document.getElementById("output");
+    let data = {};
+
+    const inputElement = document.getElementById("get-csv");
+    inputElement.addEventListener("change", handleFiles, false);
+
+    function handleFiles() {
+        output.innerHTML = "";
+        output.className = 'good';
+        data = {};
+        const fileList = this.files;
+        for (let i = 0, numFiles = fileList.length; i < numFiles; i++) {
+            const file = fileList[i];
+            data.fileName = file.name.toUpperCase();
+            let reader = new FileReader();
+            reader.onload = function (event) {
+                parseCSV(reader.result);
+                verifyCsv();
+            }
+            reader.readAsText(file);
+        }
+    }
+
+    function parseCSV(content) {
+        let rows = [];
+        let lines = content.split(/\r\n|\r|\n/g);
+        let header = lines[0].toUpperCase().split(",");
+        data.header = header.map(column => column.replace(/^"|"$/g, ''));
+        for (const row of lines.slice(1)) {
+            if (row.trim() === "") continue;
+            let row_obj = {};
+            let columns = row.split(",");
+            for (let i = 0; i < header.length; i++) {
+                row_obj[header[i]] = columns[i].replace(/^"|"$/g, '');
+            }
+            rows.push(row_obj);
+        }
+
+        data.rows = rows;
+    }
+
+    function verifyCsv() {
+        if (data.fileName.indexOf("DAY") === -1 && data.fileName.indexOf("INTERVAL") === -1) {
+            output.className = 'bad';
+            output.innerHTML += "<div>File name should contain DAY or INTERVAL.<div>";
+        }
+
+        if (data.header.indexOf("CHANNEL_TYPE") === -1) {
+            output.className = 'bad';
+            output.innerHTML += "<div>Column CHANNEL_TYPE should be there.<div>"
+        }
+
+        let dateReg = /[2][0][0-9][0-9]-[0-1][0-9]-[0-3][0-9]/;
+
+        verify_loop:
+        for (const row of data.rows) {
+            for (const column in row) {
+                if (column.toUpperCase().indexOf("DATE") !== -1) {
+                    if (row[column] && !dateReg.test(row[column])) {
+                        output.innerHTML += `<div>Format should be YYYY-MM-DD, found ${row[column]}.<div>`;
+                        break verify_loop;
+                    }
+                }
+            }
+        }
+
+        if (output.className === "good") output.innerHTML = "<div>The file looks good.</div>"
+
+    }
+</script>
+
+</body>
+</html>
